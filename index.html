@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keramik 2xN</title>
+    <style>
+        body {font-family: Arial, sans-serif; background-color: #f4f4f9; display: flex; flex-direction: column; align-items: center; padding-top: 30px;}
+        .container {background-color: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); max-width: 450px; margin-bottom: 30px;}
+        .input-group {display: flex; gap: 10px; align-items: center; margin-bottom: 20px;}
+        input[type="number"] {padding: 10px; flex-grow: 1; border: 1px solid #ccc; border-radius: 5px; font-size: 16px;}
+        button {padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: background-color 0.2s; width: 100%;}
+        button:hover {background-color: #0056b3;}
+        #result-display {font-size: 1.2em; font-weight: bold; color: #333; text-align: center; min-height: 50px; padding-top: 10px;}
+        .title {text-align: center; margin-bottom: 20px; color: #2c3e55;}
+        .limit-warning {color: #dc3545; font-size: 0.9em; text-align: center; margin-top: 10px;}
+        #patterns-container {max-width: 1200px; padding: 20px; text-align: center; margin-top: 20px;}
+        #patterns-list {display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; padding: 10px 0;}
+        .keramik-pattern {border: 2px solid #333; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); display: grid; background-color: transparent; margin: 5px; border-collapse: collapse; overflow: hidden;}
+        .tile, .horizontal-label {
+            width: 30px; height: 30px; box-sizing: border-box; border: 1px solid rgba(0, 0, 0, 0.2); 
+            font-size: 1.2em; color: white; font-weight: bold; display: flex; justify-content: center; align-items: center;
+        }
+        .tile.vertical {background-color: #28a745;}
+        .tile.horizontal {background-color: #fd7e14;}
+        .tile.vertical.full {grid-row: span 2; height: 60px;}
+        .tile.horizontal.left {border-right: none;}
+        .tile.horizontal.right {border-left: none;}
+        .horizontal-label {grid-column: span 2; border: none; background-color: transparent; pointer-events: none;}
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2 class="title">Kalkulator Penataan Keramik 2xN</h2>
+        <div class="input-group">
+            <label for="lebarN">Masukkan Nilai N (Lebar Ruangan):</label>
+            <input type="number" id="lebarN" value="6" min="1" max="10">
+        </div>
+        <button onclick="hitungDanVisualisasi()">Lihat Kemungkinan</button>
+        <div id="result-display">Ditemukan 13 cara untuk menyusun keramik pada ukuran 2x6.</div>
+        <p class="limit-warning">*Visualisasi pola dibatasi hingga **N=10** (89 pola) untuk performa optimal.</p>
+    </div>
+
+    <div id="patterns-container">
+        <h3 class="title">Visualisasi Semua Pola (Total: <span id="pattern-count">13</span>)</h3>
+        <div id="patterns-list"></div>
+    </div>
+
+    <script>
+        const MAX_N_VISUAL = 10; 
+
+        // Menggabungkan createTile dan createLabel menjadi satu fungsi utilitas
+        function createEl(className, content, row, col, span) {
+            const el = document.createElement('div');
+            el.className = className;
+            el.textContent = content;
+            el.style.gridRow = `${row}`;
+            el.style.gridColumn = span ? `${col} / span ${span}` : `${col}`;
+            return el;
+        }
+
+        function hitungFibonacci(N) {
+            if (N <= 0) return 0n;
+            if (N === 1) return 1n;
+            if (N === 2) return 2n; 
+            let c_prev2 = 1n;
+            let c_prev1 = 2n;
+            let c_current = 0n;
+            for (let i = 3; i <= N; i++) {
+                c_current = c_prev1 + c_prev2;
+                c_prev2 = c_prev1;
+                c_prev1 = c_current;
+            }
+            return c_current;
+        }
+
+        function findPatterns(N) {
+            let allPatterns = [];
+            function backtrack(currentPattern, currentLength) {
+                if (currentLength === N) {
+                    allPatterns.push(currentPattern);
+                    return;
+                }
+                if (currentLength > N) return;
+                backtrack(currentPattern.concat(['V']), currentLength + 1);
+                if (currentLength + 2 <= N) {
+                    backtrack(currentPattern.concat(['H']), currentLength + 2);
+                }
+            }
+            backtrack([], 0);
+            return allPatterns;
+        }
+        
+        function renderPattern(patternRepresentation, N) {
+            const patternDiv = document.createElement('div');
+            patternDiv.className = 'keramik-pattern';
+            patternDiv.style.gridTemplateColumns = `repeat(${N}, 30px)`; 
+            patternDiv.style.gridTemplateRows = `repeat(2, 30px)`; 
+
+            let col = 1; 
+            
+            for (let tileType of patternRepresentation) {
+                if (tileType === 'V') {
+                    const tile = createEl('tile vertical full', 'V', 1, col, 0);
+                    tile.style.gridRow = '1 / span 2';
+                    patternDiv.appendChild(tile);
+                    col++;
+                } else if (tileType === 'H') {
+                    // Baris 1: Latar Belakang & Label
+                    patternDiv.appendChild(createEl('tile horizontal left', '', 1, col, 0));
+                    patternDiv.appendChild(createEl('tile horizontal right', '', 1, col + 1, 0));
+                    patternDiv.appendChild(createEl('horizontal-label', 'H', 1, col, 2));
+
+                    // Baris 2: Latar Belakang & Label
+                    patternDiv.appendChild(createEl('tile horizontal left', '', 2, col, 0));
+                    patternDiv.appendChild(createEl('tile horizontal right', '', 2, col + 1, 0));
+                    patternDiv.appendChild(createEl('horizontal-label', 'H', 2, col, 2));
+
+                    col += 2;
+                }
+            }
+            return patternDiv;
+        }
+
+        function hitungDanVisualisasi() {
+            const N = parseInt(document.getElementById('lebarN').value);
+            const resultDisplay = document.getElementById('result-display');
+            const patternsList = document.getElementById('patterns-list');
+            const patternCountDisplay = document.getElementById('pattern-count');
+            
+            patternsList.innerHTML = ''; 
+
+            if (isNaN(N) || N < 1) {
+                resultDisplay.innerHTML = "Masukkan angka positif untuk Lebar Ruangan (N).";
+                patternCountDisplay.textContent = 0;
+                return;
+            }
+            
+            const jumlahCara = hitungFibonacci(N).toString(); 
+            resultDisplay.innerHTML = `Ditemukan **${jumlahCara} cara** untuk menyusun keramik pada ukuran 2x${N}.`;
+
+            if (N <= MAX_N_VISUAL) {
+                const allPatterns = findPatterns(N);
+                patternCountDisplay.textContent = allPatterns.length;
+                allPatterns.forEach(pattern => patternsList.appendChild(renderPattern(pattern, N)));
+            } else {
+                patternsList.innerHTML = `<p class="limit-warning">Visualisasi Pola dihentikan pada N=${MAX_N_VISUAL} untuk menjaga performa browser.<br>Total pola yang ditemukan adalah **${jumlahCara}**.</p>`;
+                patternCountDisplay.textContent = jumlahCara;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', hitungDanVisualisasi);
+    </script>
+</body>
+</html>
